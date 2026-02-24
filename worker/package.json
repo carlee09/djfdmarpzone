@@ -1,0 +1,13 @@
+{
+  "name": "viral-content-agents",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secrets": "bash ../scripts/set-secrets.sh"
+  },
+  "devDependencies": {
+    "wrangler": "^4.68.0"
+  }
+}

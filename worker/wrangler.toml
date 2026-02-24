@@ -1,0 +1,54 @@
+name = "viral-content-agents"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "3f1933da73f448b08b27c9085ea8952a"
+
+# Queue Producers (메시지 발송)
+[[queues.producers]]
+binding = "ORCHESTRATOR_QUEUE"
+queue = "orchestrator-queue"
+
+[[queues.producers]]
+binding = "TREND_SCOUT_QUEUE"
+queue = "trend-scout-queue"
+
+[[queues.producers]]
+binding = "ANALYST_QUEUE"
+queue = "analyst-queue"
+
+[[queues.producers]]
+binding = "COPYWRITER_QUEUE"
+queue = "copywriter-queue"
+
+[[queues.producers]]
+binding = "QA_QUEUE"
+queue = "qa-queue"
+
+# Queue Consumers (메시지 수신)
+[[queues.consumers]]
+queue = "orchestrator-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "trend-scout-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "analyst-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "copywriter-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
+[[queues.consumers]]
+queue = "qa-queue"
+max_batch_size = 1
+max_batch_timeout = 30
