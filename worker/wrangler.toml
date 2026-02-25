@@ -2,6 +2,9 @@ name = "viral-content-agents"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 
+[triggers]
+crons = ["0 1 * * *", "0 7 * * *"]  # KST 오전 10시, 오후 4시
+
 [[kv_namespaces]]
 binding = "CACHE"
 id = "3f1933da73f448b08b27c9085ea8952a"

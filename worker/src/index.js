@@ -7,6 +7,8 @@ import { runAnalyst } from './agents/analyst.js';
 import { runCopywriter } from './agents/copywriter.js';
 import { runQAReviewer } from './agents/qa-reviewer.js';
 import { createClient } from './lib/supabase.js';
+import { updatePreferences } from './lib/preferences.js';
+import { answerCallbackQuery, editMessage, sendMessage } from './lib/telegram.js';
 
 // ───────────────────────────────────────────
 // HTTP API 핸들러
@@ -40,13 +42,13 @@ export default {
       // POST /api/jobs - 새 작업 생성
       if (method === 'POST' && path === '/api/jobs') {
         const body = await request.json();
-        const { goal, keywords = [], twitterAccounts = [] } = body;
+        const { goal, twitterAccounts = [] } = body;
 
         if (!goal) return respond({ error: 'goal is required' }, 400);
 
         const [job] = await db.insert('jobs', {
           goal,
-          keywords,
+          keywords: [],   // Orchestrator가 자율 결정
           status: 'pending',
         });
 
@@ -92,6 +94,9 @@ export default {
 
         await db.update('jobs', { status: 'approved' }, { id: `eq.${jobId}` });
 
+        // 선호도 학습 업데이트 (백그라운드, 실패해도 무시)
+        updatePreferences(env, db).catch(() => {});
+
         return respond({ success: true, message: '승인 완료. 발행 준비됨.' });
       }
 
@@ -100,7 +105,52 @@ export default {
       if (method === 'POST' && rejectMatch) {
         const jobId = rejectMatch[1];
         await db.update('jobs', { status: 'rejected' }, { id: `eq.${jobId}` });
+
+        // 선호도 학습 업데이트 (백그라운드, 실패해도 무시)
+        updatePreferences(env, db).catch(() => {});
+
         return respond({ success: true, message: '반려 완료.' });
+      }
+
+      // POST /telegram/webhook - 텔레그램 버튼 클릭 처리
+      if (method === 'POST' && path === '/telegram/webhook') {
+        const update = await request.json();
+        const cq = update.callback_query;
+
+        if (cq) {
+          const [action, jobId] = cq.data.split(':');
+          const msgId = cq.message.message_id;
+          const chatId = cq.message.chat.id;
+
+          if (action === 'approve' && jobId) {
+            // 선택된 콘텐츠 ID를 DB에서 조회
+            const selected = await db.select('contents', {
+              job_id: `eq.${jobId}`,
+              is_selected: 'eq.true',
+            });
+            if (selected.length) {
+              await db.update('contents', {
+                approved_at: new Date().toISOString(),
+              }, { id: `eq.${selected[0].id}` });
+            }
+            await db.update('jobs', { status: 'approved' }, { id: `eq.${jobId}` });
+            updatePreferences(env, db).catch(() => {});
+
+            await answerCallbackQuery(env.TELEGRAM_TOKEN, cq.id, '✅ 승인 완료');
+            await editMessage(env.TELEGRAM_TOKEN, chatId, msgId,
+              cq.message.text + '\n\n<b>✅ 승인됨</b>');
+
+          } else if (action === 'reject' && jobId) {
+            await db.update('jobs', { status: 'rejected' }, { id: `eq.${jobId}` });
+            updatePreferences(env, db).catch(() => {});
+
+            await answerCallbackQuery(env.TELEGRAM_TOKEN, cq.id, '❌ 반려 완료');
+            await editMessage(env.TELEGRAM_TOKEN, chatId, msgId,
+              cq.message.text + '\n\n<b>❌ 반려됨</b>');
+          }
+        }
+
+        return respond({ ok: true });
       }
 
       return respond({ error: 'Not found' }, 404);
@@ -109,6 +159,27 @@ export default {
       console.error('API error:', err);
       return respond({ error: err.message }, 500);
     }
+  },
+
+  // ───────────────────────────────────────────
+  // Cron Trigger 핸들러 (KST 오전 10시 / 오후 4시)
+  // ───────────────────────────────────────────
+  async scheduled(event, env) {
+    const db = createClient(env);
+
+    const hour = new Date(event.scheduledTime).getUTCHours();
+    const goal = hour === 1
+      ? '오전 IT 트렌드 기반 바이럴 X 포스트 생성'
+      : '오후 IT 트렌드 기반 바이럴 X 포스트 생성';
+
+    const [job] = await db.insert('jobs', {
+      goal,
+      keywords: [],
+      status: 'pending',
+    });
+
+    await env.ORCHESTRATOR_QUEUE.send({ jobId: job.id, twitterAccounts: [] });
+    console.log(`[Cron] Job created: ${job.id} (${goal})`);
   },
 
   // ───────────────────────────────────────────

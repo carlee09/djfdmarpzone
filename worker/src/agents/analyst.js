@@ -33,18 +33,16 @@ export async function runAnalyst(env, message) {
 수집된 트렌드 데이터:
 ${trendSummary}
 
-다음 JSON 형식으로 분석 결과를 반환하세요:
-\`\`\`json
+다음 JSON 스키마로 응답하세요:
 {
-  "topTopics": ["주요 토픽 1", "주요 토픽 2", "주요 토픽 3"],
-  "viralTriggers": ["감정적 반응", "정보 충격", "논쟁 유발" 등 감지된 바이럴 트리거],
-  "targetEmotion": "콘텐츠가 유발해야 할 주요 감정",
-  "contentAngle": "차별화된 콘텐츠 각도/관점",
-  "hookStyle": "첫 문장 스타일 (예: 반전, 질문, 주장, 수치 등)",
-  "avoidTopics": ["피해야 할 소재나 표현"],
-  "contentBrief": "Copywriter에게 전달할 구체적인 콘텐츠 방향 (3-5문장)"
+  "topTopics": string[],
+  "viralTriggers": string[],
+  "targetEmotion": string,
+  "contentAngle": string,
+  "hookStyle": string,
+  "avoidTopics": string[],
+  "contentBrief": string
 }
-\`\`\`
 `;
 
     const { data: analysis, tokensUsed } = await callGeminiJSON(env.GEMINI_API_KEY, prompt);
