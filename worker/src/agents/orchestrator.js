@@ -3,6 +3,7 @@
 
 import { callGeminiJSON } from '../lib/gemini.js';
 import { createClient } from '../lib/supabase.js';
+import { fetchTrendingTopics } from '../lib/trends-rss.js';
 
 export async function runOrchestrator(env, message) {
   const { jobId, twitterAccounts = [] } = message;
@@ -23,6 +24,12 @@ export async function runOrchestrator(env, message) {
 
     await db.update('jobs', { status: 'running' }, { id: `eq.${jobId}` });
 
+    // Google Trends RSS에서 오늘의 실시간 트렌딩 토픽 수집
+    const trendingTopics = await fetchTrendingTopics(15);
+    const trendingSection = trendingTopics.length > 0
+      ? `\n오늘의 실시간 트렌딩 검색어 (Google Trends KR):\n${trendingTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+      : '';
+
     // Gemini로 목표 분석 → 검색 전략 자율 결정
     const prompt = `
 당신은 바이럴 콘텐츠 마케팅 전략가입니다.
@@ -30,6 +37,9 @@ export async function runOrchestrator(env, message) {
 
 목표: ${job.goal}
 오늘 날짜: ${new Date().toISOString().split('T')[0]}
+${trendingSection}
+
+트렌딩 검색어가 제공된 경우, 그 중 목표와 관련성 높은 것을 우선 키워드로 활용하세요.
 
 다음 JSON 스키마로 응답하세요:
 {
