@@ -52,7 +52,8 @@ export async function runQAReviewer(env, message) {
       await db.update('jobs', { status: 'awaiting_approval' }, { id: `eq.${jobId}` });
 
       // Telegram 알림 전송
-      await notifyTelegram(env, jobId, best);
+      const [job] = await db.select('jobs', { id: `eq.${jobId}` }, 'keywords');
+      await notifyTelegram(env, jobId, best, job?.keywords || []);
     } else {
       await db.update('jobs', { status: 'failed' }, { id: `eq.${jobId}` });
 
@@ -81,15 +82,18 @@ export async function runQAReviewer(env, message) {
   }
 }
 
-async function notifyTelegram(env, jobId, best) {
+async function notifyTelegram(env, jobId, best, keywords = []) {
   const charCount = best.body.length;
+  const keywordLine = keywords.length
+    ? `\n🔍 키워드: ${keywords.join(', ')}\n`
+    : '';
 
   const msg = `
 🎯 <b>콘텐츠 승인 요청</b>
 
 📊 바이럴 점수: <b>${best.score}점</b>
 📝 글자 수: ${charCount}/280자
-
+${keywordLine}
 ──────────────────
 ${best.body}
 ──────────────────
