@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2025-01-01"
 
 [triggers]
-crons = ["0 1 * * *", "0 7 * * *"]  # KST 오전 10시, 오후 4시
+crons = ["0 */2 * * *"]  # 2시간마다 (12회/일)
 
 [[kv_namespaces]]
 binding = "CACHE"
